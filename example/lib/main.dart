@@ -3,7 +3,8 @@ import 'dart:async';
 import 'package:telephony/telephony.dart';
 
 onBackgroundMessage(SmsMessage message) {
-  debugPrint("onBackgroundMessage called");
+  debugPrint('onBackgroundMessage called');
+  debugPrint('service center address ${message.serviceCenterAddress}');
 }
 
 void main() {
@@ -29,6 +30,7 @@ class _MyAppState extends State<MyApp> {
     setState(() {
       _message = message.body ?? "Error reading message body.";
     });
+    debugPrint('service center address ${message.serviceCenterAddress}');
   }
 
   onSendStatus(SendStatus status) {
@@ -69,7 +71,25 @@ class _MyAppState extends State<MyApp> {
               onPressed: () async {
                 await telephony.openDialer("123413453");
               },
-              child: Text('Open Dialer'))
+              child: Text('Open Dialer')),
+          TextButton(
+              onPressed: () async {
+                List<SmsMessage> messages = await telephony.getInboxSms(
+                    columns: [
+                      SmsColumn.SERVICE_CENTER_ADDRESS,
+                      SmsColumn.ADDRESS
+                    ],
+                    sortOrder: [
+                      OrderBy(SmsColumn.DATE)
+                    ]);
+                if (messages.isNotEmpty && messages.length > 2) {
+                  debugPrint(
+                      'first message ${messages[2].serviceCenterAddress} with sender ${messages[2].address}');
+                } else {
+                  debugPrint('no messages were retrieved');
+                }
+              },
+              child: Text('Get Messages'))
         ],
       ),
     ));
