@@ -45,6 +45,7 @@ import com.shounakmulay.telephony.utils.SmsAction
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.common.PluginRegistry
+import android.telephony.SmsManager;
 
 
 class SmsMethodCallHandler(
