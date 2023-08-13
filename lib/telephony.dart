@@ -6,12 +6,12 @@ import 'package:flutter/widgets.dart';
 import 'package:platform/platform.dart';
 
 part 'constants.dart';
-
 part 'filter.dart';
 
 typedef MessageHandler(SmsMessage message);
 typedef SmsSendStatusListener(SendStatus status);
 
+@pragma('vm:entry-point')
 void _flutterSmsSetupBackgroundChannel(
     {MethodChannel backgroundChannel =
         const MethodChannel(_BACKGROUND_CHANNEL)}) async {
@@ -149,6 +149,8 @@ class Telephony {
         return _statusListener(SendStatus.SENT);
       case SMS_DELIVERED:
         return _statusListener(SendStatus.DELIVERED);
+      case SMS_FAIL:
+        return _statusListener(SendStatus.FAIL);
     }
   }
 

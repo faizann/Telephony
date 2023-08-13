@@ -34,6 +34,7 @@ import com.shounakmulay.telephony.utils.Constants.SHARED_PREFERENCES_NAME
 import com.shounakmulay.telephony.utils.Constants.SHARED_PREFS_DISABLE_BACKGROUND_EXE
 import com.shounakmulay.telephony.utils.Constants.SMS_BACKGROUND_REQUEST_CODE
 import com.shounakmulay.telephony.utils.Constants.SMS_DELIVERED
+import com.shounakmulay.telephony.utils.Constants.SMS_FAIL
 import com.shounakmulay.telephony.utils.Constants.SMS_QUERY_REQUEST_CODE
 import com.shounakmulay.telephony.utils.Constants.SMS_SEND_REQUEST_CODE
 import com.shounakmulay.telephony.utils.Constants.SMS_SENT
@@ -44,6 +45,7 @@ import com.shounakmulay.telephony.utils.SmsAction
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.common.PluginRegistry
+import android.telephony.SmsManager;
 
 
 class SmsMethodCallHandler(
@@ -211,7 +213,7 @@ class SmsMethodCallHandler(
         IncomingSmsHandler.setBackgroundMessageHandle(context, backgroundHandle)
       }
       SmsAction.BACKGROUND_SERVICE_INITIALIZED -> {
-        IncomingSmsHandler.onChannelInitialized()
+        IncomingSmsHandler.onChannelInitialized(context.applicationContext)
       }
       SmsAction.DISABLE_BACKGROUND_SERVICE -> {
         val preferences = context.getSharedPreferences(SHARED_PREFERENCES_NAME, Context.MODE_PRIVATE)
@@ -354,7 +356,7 @@ class SmsMethodCallHandler(
     }
   }
 
-  override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>?, grantResults: IntArray?): Boolean {
+  override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray): Boolean {
 
     permissionsController.isRequestingPermission = false
 
@@ -363,12 +365,12 @@ class SmsMethodCallHandler(
       return false
     }
 
-    val allPermissionGranted = grantResults?.foldIndexed(true) { i, acc, result ->
+    val allPermissionGranted = grantResults.foldIndexed(true) { i, acc, result ->
       if (result == PackageManager.PERMISSION_DENIED) {
-        permissions?.let { deniedPermissions.add(it[i]) }
+        permissions.let { deniedPermissions.add(it[i]) }
       }
       return@foldIndexed acc && result == PackageManager.PERMISSION_GRANTED
-    } ?: false
+    }
 
     return if (allPermissionGranted) {
       execute(action)
@@ -390,9 +392,21 @@ class SmsMethodCallHandler(
   override fun onReceive(ctx: Context?, intent: Intent?) {
     if (intent != null) {
       when (intent.action) {
-        Constants.ACTION_SMS_SENT -> foregroundChannel.invokeMethod(SMS_SENT, null)
+        Constants.ACTION_SMS_SENT -> {
+          when(resultCode) {
+            Activity.RESULT_OK -> foregroundChannel.invokeMethod(SMS_SENT, null)
+            SmsManager.RESULT_ERROR_GENERIC_FAILURE -> foregroundChannel.invokeMethod(SMS_FAIL, null)
+            SmsManager.RESULT_ERROR_NO_SERVICE -> foregroundChannel.invokeMethod(SMS_FAIL, null)
+            SmsManager.RESULT_ERROR_NULL_PDU -> foregroundChannel.invokeMethod(SMS_FAIL, null)
+            SmsManager.RESULT_ERROR_RADIO_OFF -> foregroundChannel.invokeMethod(SMS_FAIL, null)
+
+          }
+          }
         Constants.ACTION_SMS_DELIVERED -> {
-          foregroundChannel.invokeMethod(SMS_DELIVERED, null)
+          when (resultCode) {
+            Activity.RESULT_OK -> foregroundChannel.invokeMethod(SMS_DELIVERED, null)
+            Activity.RESULT_CANCELED -> foregroundChannel.invokeMethod(SMS_FAIL, null)
+          }
           context.unregisterReceiver(this)
         }
       }
